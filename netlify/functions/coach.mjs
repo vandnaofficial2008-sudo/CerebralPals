@@ -44,23 +44,46 @@ export default async (req, context) => {
   if (!validate(body)) return json({ error: 'bad_request' }, 400);
 
   try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: buildPrompt(body) }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          maxOutputTokens: 1000,
-          thinkingConfig: { thinkingBudget: 0 }
-        }
-      })
+    const models = [MODEL, process.env.GEMINI_FALLBACK_MODEL].filter(Boolean);
+    const payload = JSON.stringify({
+      contents: [{ parts: [{ text: buildPrompt(body) }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        maxOutputTokens: 1000,
+        thinkingConfig: { thinkingBudget: 0 }
+      }
     });
-    if (!r.ok) { console.error('Gemini API', r.status, await r.text()); return json({ error: r.status === 429 ? 'rate_limited' : 'upstream' }, r.status === 429 ? 429 : 502); }
-    const data = await r.json();
-    const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
-    const clean = text.replace(/```json|```/g, '').trim();
-    return json(JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1)));
+
+    // Gemini is sometimes busy (503) or slow. Try up to 3 times, each with a time limit,
+    // so the function always answers before Netlify's 30 second cut-off.
+    const started = Date.now();
+    let lastStatus = 0;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const model = models[Math.min(attempt > 0 ? 1 : 0, models.length - 1)];
+      if (Date.now() - started > 18000) break;
+      try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+          body: payload,
+          signal: AbortSignal.timeout(8000)
+        });
+        if (r.ok) {
+          const data = await r.json();
+          const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
+          const clean = text.replace(/```json|```/g, '').trim();
+          return json(JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1)));
+        }
+        lastStatus = r.status;
+        console.error('Gemini API', r.status, model, (await r.text()).slice(0, 300));
+        if (![429, 500, 503, 504].includes(r.status)) break; // not worth retrying
+      } catch (e) {
+        lastStatus = 0;
+        console.error('Gemini request failed or timed out', model, e.name);
+      }
+      await new Promise(res => setTimeout(res, 1000));
+    }
+    return json({ error: lastStatus === 429 ? 'rate_limited' : 'upstream' }, lastStatus === 429 ? 429 : 502);
   } catch (e) {
     console.error(e);
     return json({ error: 'upstream' }, 502);
