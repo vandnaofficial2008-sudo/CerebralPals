@@ -1,0 +1,622 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>CerebralPals</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Fredoka:wght@500;600&display=swap">
+<style>
+/* Layout: one centred column. Home = track cards. Play = one focused stage. Results = score hero, skill bars, coach. */
+:root{
+  --bg:#EEF4FF; --surface:#FFFFFF; --surface2:#E3ECFF; --ink:#0E2147; --muted:#52668C; --line:#CBD8F2;
+  --blue:#1F5EFF; --blue-ink:#FFFFFF; --orange:#FF7A1A; --orange-ink:#1B1100;
+  --good:#16794A; --warn:#B33A00; --focus:#1F5EFF;
+  --display:'Fredoka','Trebuchet MS',system-ui,sans-serif;
+  --body:'DM Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#081329; --surface:#10224A; --surface2:#183166; --ink:#EAF1FF; --muted:#9DB1D8; --line:#27427F;
+    --blue:#6B9BFF; --blue-ink:#071433; --orange:#FF9442; --orange-ink:#1B1100;
+    --good:#4BD08A; --warn:#FFB07A; --focus:#9DBBFF; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#081329; --surface:#10224A; --surface2:#183166; --ink:#EAF1FF; --muted:#9DB1D8; --line:#27427F;
+  --blue:#6B9BFF; --blue-ink:#071433; --orange:#FF9442; --orange-ink:#1B1100;
+  --good:#4BD08A; --warn:#FFB07A; --focus:#9DBBFF; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--body); font-size:16px; line-height:1.5;
+  padding-block:18px 40px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+.app{max-width:720px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);font-weight:600;line-height:1.15;margin:0;text-wrap:balance}
+h1{font-size:clamp(1.9rem,6vw,2.6rem)}
+h2{font-size:1.45rem}
+h3{font-size:1.1rem}
+p{margin:0}
+.muted{color:var(--muted)}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:600;font-size:1.3rem;background:none;border:0;color:var(--ink);padding:0;cursor:pointer}
+.brand svg{width:34px;height:34px}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:99px;padding:4px 12px;font-size:.85rem}
+.btn{font:inherit;font-weight:700;border-radius:12px;border:2px solid transparent;padding:12px 20px;cursor:pointer;min-height:46px;transition:transform .12s ease}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--orange);color:var(--orange-ink)}
+.btn.blue{background:var(--blue);color:var(--blue-ink)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.small{padding:6px 12px;min-height:36px;font-size:.9rem}
+.btn[disabled]{opacity:.55;cursor:default}
+:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px}
+.stack{display:flex;flex-direction:column;gap:16px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.hero{display:flex;flex-direction:column;gap:12px;margin-bottom:22px}
+.hero p{max-width:52ch;color:var(--muted);font-size:1.05rem}
+.tracks{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.track{display:flex;flex-direction:column;gap:12px;min-width:0}
+.track.main{border:2px solid var(--blue)}
+.track .meta{font-size:.85rem;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--surface2);border-radius:8px;padding:3px 9px;font-size:.82rem;font-weight:500}
+.track .btn{margin-top:auto}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:22px}
+.steps div{border-left:3px solid var(--orange);padding-left:12px;min-width:0}
+.steps b{display:block}
+.gamebar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.prog{height:8px;border-radius:99px;background:var(--surface2);overflow:hidden;margin-bottom:18px}
+.prog i{display:block;height:100%;background:var(--blue);border-radius:99px;transition:width .3s ease}
+.stage{display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center;min-height:340px;justify-content:center}
+.status{font-weight:700;min-height:1.5em}
+.orb{width:min(60vw,240px);aspect-ratio:1;border-radius:50%;border:0;background:var(--blue);color:var(--blue-ink);font:600 1.4rem var(--display);cursor:pointer;touch-action:manipulation;padding:12px}
+.orb.go{background:var(--orange);color:var(--orange-ink)}
+.orb.early{background:var(--surface2);color:var(--ink)}
+.mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:min(100%,320px)}
+.cell{aspect-ratio:1;border-radius:14px;border:0;background:var(--surface2);cursor:pointer;touch-action:manipulation}
+.cell.lit{background:var(--orange)}
+.cell.tap{background:var(--blue)}
+.bigword{font-family:var(--display);font-weight:600;font-size:clamp(2.6rem,12vw,3.6rem);letter-spacing:.02em;min-height:1.2em}
+.bigq{font-family:var(--display);font-weight:600;font-size:clamp(2rem,9vw,2.8rem);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.opts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;width:min(100%,420px)}
+.opt{font:inherit;font-weight:700;font-size:1.1rem;min-height:52px;border-radius:12px;border:2px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;touch-action:manipulation;font-variant-numeric:tabular-nums}
+.opt:hover{border-color:var(--blue)}
+.big-score{font-family:var(--display);font-weight:600;font-size:4rem;line-height:1;font-variant-numeric:tabular-nums}
+.scorehero{display:flex;flex-wrap:wrap;gap:18px 28px;align-items:center}
+.scorehero .pts{background:var(--orange);color:var(--orange-ink);border-radius:18px;padding:14px 22px;min-width:150px}
+.scorehero .pts small{display:block;font-weight:700}
+.scorehero .pts .big-score{font-size:3.2rem}
+.skills{display:flex;flex-direction:column;gap:14px}
+.skill{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}
+.skill .name{font-weight:700}
+.skill .num{font-variant-numeric:tabular-nums;font-weight:700}
+.skill .bar{grid-column:1/-1;height:12px;border-radius:99px;background:var(--surface2);overflow:hidden}
+.skill .bar i{display:block;height:100%;background:var(--blue);border-radius:99px}
+.skill.weak .bar i{background:var(--orange)}
+.skill .detail{grid-column:1/-1;font-size:.85rem;color:var(--muted)}
+.list{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:8px}
+.tag{display:inline-block;font-size:.78rem;font-weight:700;border-radius:6px;padding:2px 8px;background:var(--surface2)}
+.tag.warn{color:var(--warn)}
+.tag.good{color:var(--good)}
+.coach{border:2px dashed var(--blue)}
+.note{font-size:.85rem;color:var(--muted)}
+.tmr{display:flex;align-items:center;gap:10px;width:min(100%,420px)}
+.tmr .trk{flex:1;height:10px;border-radius:99px;background:var(--surface2);overflow:hidden}
+.tmr i{display:block;height:100%;width:100%;background:var(--orange);border-radius:99px}
+.tmr span{font-variant-numeric:tabular-nums;font-weight:700;min-width:3ch;text-align:right}
+footer{margin-top:28px;font-size:.85rem;color:var(--muted)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+<div class="app">
+  <div class="top">
+    <button class="brand" id="homeBtn" type="button" aria-label="CerebralPals home">
+      <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="15" cy="20" r="12" fill="var(--blue)"/><circle cx="26" cy="20" r="12" fill="var(--orange)" fill-opacity=".9"/><path d="M15 12c3 2 3 6 0 8s-3 6 0 8M26 12c-3 2-3 6 0 8s3 6 0 8" stroke="var(--surface)" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+      CerebralPals
+    </button>
+    <span class="pill" id="topPill">No sign-up needed</span>
+  </div>
+  <main id="view"></main>
+  <footer>CerebralPals is a fun snapshot of how your mind works today. It is not a medical or clinical test, and scores change with sleep, mood and practice.</footer>
+</div>
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+const rand = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const shuffle = arr => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rand(0, i); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const mean = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+function makeTimers() {
+  const ids = [];
+  return { set(fn, ms) { const id = setTimeout(fn, ms); ids.push(id); return id; }, clear() { ids.forEach(clearTimeout); ids.length = 0; } };
+}
+
+const GAMES = {
+  reaction: { id: 'reaction', name: 'Reaction Dash', skill: 'Speed', measures: 'How quickly you respond to a signal.',
+    how: 'Wait for the circle to turn orange, then tap it within 1.2 seconds. Tapping early or too late counts as a slow round. 6 rounds.' },
+  memory: { id: 'memory', name: 'Pattern Recall', skill: 'Memory', measures: 'How well you hold a sequence in mind.',
+    how: 'Watch cells light up fast, then repeat the order before the timer runs out. Each level adds one more cell and one miss ends the game. Starts at 4 cells.' },
+  stroop: { id: 'stroop', name: 'Colour Clash', skill: 'Focus', measures: 'How well you ignore distractions.',
+    how: 'A colour word appears in a different ink colour. Tap the colour of the ink, not the word. Each of the 15 words disappears after 2.5 seconds.' },
+  pattern: { id: 'pattern', name: 'Next in Line', skill: 'Logic', measures: 'How well you spot rules in number patterns.',
+    how: 'Each question shows a harder number sequence. Pick the number that comes next. 7 questions, 25 seconds each.' },
+  math: { id: 'math', name: 'Number Sprint', skill: 'Calculation', measures: 'How fast and accurately you do mental maths.',
+    how: 'Solve three-digit sums, bigger products, divisions, squares and mixed sums. 10 questions, 10 seconds each, and speed counts.' }
+};
+const TRACKS = [
+  { id: 'full', name: 'Full Brain Check', mins: 6, games: ['reaction', 'memory', 'stroop', 'pattern', 'math'], main: true,
+    blurb: 'All five games for a complete picture of your strengths.' },
+  { id: 'focus', name: 'Focus & Speed', mins: 4, games: ['reaction', 'stroop', 'math'],
+    blurb: 'Quick reflexes, steady attention and fast thinking.' },
+  { id: 'mind', name: 'Memory & Logic', mins: 5, games: ['memory', 'pattern', 'stroop'],
+    blurb: 'Hold things in mind, find the rule, stay on target.' }
+];
+const SKILL_TIPS = {
+  Speed: 'Practise in short bursts: two minutes of reaction or typing drills, then a break. Good sleep and a clear desk help more than you would expect.',
+  Memory: 'Group things into chunks of three, say them out loud, and try to recall yesterday’s lesson from scratch before you open your notes.',
+  Focus: 'Work in 25 minute blocks with your phone in another room. Replay Colour Clash and say the ink colour out loud to train ignoring distractions.',
+  Logic: 'Solve three puzzles a day: number sequences, aptitude questions or small coding problems. After each one, write the rule in a single sentence.',
+  Calculation: 'Do ten mental maths questions a day. Learn squares up to 20 and tables up to 12, and estimate an answer before you work it out.'
+};
+const STYLE_NAMES = { Speed: 'Lightning Reactor', Memory: 'Memory Keeper', Focus: 'Laser Focuser', Logic: 'Pattern Finder', Calculation: 'Number Ninja' };
+
+const state = { track: null, idx: 0, results: {}, cleanup: null };
+const view = $('#view');
+const pill = $('#topPill');
+function setView(html) {
+  if (state.cleanup) { state.cleanup(); state.cleanup = null; }
+  view.innerHTML = html;
+  window.scrollTo(0, 0);
+}
+$('#homeBtn').addEventListener('click', showHome);
+
+let sample = null;
+(async () => {
+  try { if (window.claude && window.claude.use) sample = await window.claude.use('sample'); } catch (e) { sample = null; }
+})();
+
+function showHome() {
+  pill.textContent = 'No sign-up needed';
+  setView(`
+    <section class="hero">
+      <h1>Find out how your brain plays.</h1>
+      <p>Pick a track, play a few quick games and get your Brain Points, your strongest skills and the exact areas to work on. Every game is timed, so stay sharp. Takes about six minutes.</p>
+    </section>
+    <section class="tracks" aria-label="Choose a track">
+      ${TRACKS.map(t => `
+        <article class="card track${t.main ? ' main' : ''}">
+          <h2>${t.name}</h2>
+          <p class="muted">${t.blurb}</p>
+          <div class="chips">${t.games.map(g => `<span class="chip">${GAMES[g].skill}</span>`).join('')}</div>
+          <div class="meta">${t.games.length} games · about ${t.mins} min</div>
+          <button class="btn ${t.main ? 'primary' : 'blue'}" type="button" data-track="${t.id}">Start ${t.name}</button>
+        </article>`).join('')}
+    </section>
+    <section class="steps" aria-label="How it works">
+      <div><b>Play</b><span class="muted">Timed games, each one tests a different skill.</span></div>
+      <div><b>Score</b><span class="muted">Every game gives 0 to 100 and up to 1,000 Brain Points.</span></div>
+      <div><b>Improve</b><span class="muted">See your weak points and get an AI practice plan.</span></div>
+    </section>`);
+  view.querySelectorAll('[data-track]').forEach(b => b.addEventListener('click', () => startTrack(b.dataset.track)));
+}
+
+function startTrack(id) {
+  state.track = TRACKS.find(t => t.id === id);
+  state.idx = 0;
+  state.results = {};
+  showIntro();
+}
+function gameHead() {
+  const n = state.track.games.length;
+  return `<div class="gamebar"><span class="pill">${state.track.name} · Game ${Math.min(state.idx + 1, n)} of ${n}</span><button class="btn ghost small" type="button" id="quitBtn">Quit</button></div>
+    <div class="prog" role="progressbar" aria-valuemin="0" aria-valuemax="${n}" aria-valuenow="${state.idx}"><i style="width:${(state.idx / n) * 100}%"></i></div>`;
+}
+function wireQuit() { const q = $('#quitBtn'); if (q) q.addEventListener('click', showHome); }
+
+function showIntro() {
+  const g = GAMES[state.track.games[state.idx]];
+  pill.textContent = state.track.name;
+  setView(`${gameHead()}
+    <div class="card stack">
+      <span class="tag">${g.skill}</span>
+      <h2>${g.name}</h2>
+      <p class="muted">${g.measures}</p>
+      <p>${g.how}</p>
+      <div class="row"><button class="btn primary" type="button" id="startBtn">Start game</button></div>
+    </div>`);
+  wireQuit();
+  $('#startBtn').addEventListener('click', playGame);
+}
+function playGame() {
+  const g = GAMES[state.track.games[state.idx]];
+  setView(`${gameHead()}<div class="card stage" id="stage"></div>`);
+  wireQuit();
+  state.cleanup = IMPL[g.id]($('#stage'), res => finishGame(g, res));
+}
+function finishGame(g, res) {
+  state.results[g.id] = res;
+  const last = state.idx >= state.track.games.length - 1;
+  setView(`${gameHead()}
+    <div class="card stack">
+      <span class="tag good">${g.skill} · ${g.name}</span>
+      <div class="row" style="align-items:flex-end;gap:14px"><span class="big-score">${res.score}</span><span class="muted" style="padding-bottom:8px">out of 100 · ${res.score * 10} points</span></div>
+      <p>${res.detail}</p>
+      <div class="row"><button class="btn primary" type="button" id="nextBtn">${last ? 'See my results' : 'Next game'}</button></div>
+    </div>`);
+  wireQuit();
+  $('#nextBtn').addEventListener('click', () => {
+    if (last) { state.idx++; showResults(); } else { state.idx++; showIntro(); }
+  });
+}
+
+/* ---------- Games. Each returns a cleanup function. ---------- */
+const TIMER_HTML = '<div class="tmr"><div class="trk"><i></i></div><span></span></div>';
+function countdown(box, ms, onEnd) {
+  const fill = box.querySelector('i'), lab = box.querySelector('span'), end = performance.now() + ms; let live = true;
+  box.style.visibility = 'visible';
+  fill.style.transition = 'none'; fill.style.width = '100%'; void fill.offsetWidth;
+  fill.style.transition = 'width ' + ms + 'ms linear'; fill.style.width = '0%';
+  lab.textContent = Math.ceil(ms / 1000) + 's';
+  const iv = setInterval(() => { lab.textContent = Math.max(0, Math.ceil((end - performance.now()) / 1000)) + 's'; }, 200);
+  const to = setTimeout(() => { clearInterval(iv); if (live) { live = false; onEnd(); } }, ms);
+  return { stop() { live = false; clearTimeout(to); clearInterval(iv); } };
+}
+
+function reactionGame(stage, done) {
+  const T = makeTimers(); const times = []; let round = 0, phase = 'idle', startAt = 0, goTimer = 0, slow = 0;
+  stage.innerHTML = '<div class="status" id="st"></div><button class="orb" id="orb" type="button"></button><div class="note" id="sub"></div>';
+  const orb = $('#orb', stage), st = $('#st', stage), sub = $('#sub', stage);
+  function begin() {
+    if (round >= 6) return finish();
+    phase = 'wait'; orb.className = 'orb'; orb.textContent = 'Wait…';
+    st.textContent = 'Round ' + (round + 1) + ' of 6';
+    sub.textContent = 'Tap only when the circle turns orange. You get 1.2 seconds.';
+    T.set(() => {
+      phase = 'go'; orb.className = 'orb go'; orb.textContent = 'TAP!'; startAt = performance.now();
+      goTimer = T.set(() => {
+        phase = 'pause'; times.push(1000); round++; slow++;
+        orb.className = 'orb early'; orb.textContent = 'Too slow'; sub.textContent = 'Counted as 1000 ms.';
+        T.set(begin, 1000);
+      }, 1200);
+    }, rand(1000, 3500));
+  }
+  function tap() {
+    if (phase === 'wait') {
+      T.clear(); phase = 'pause'; times.push(800); round++;
+      orb.className = 'orb early'; orb.textContent = 'Too early'; sub.textContent = 'Counted as 800 ms. Stay patient!';
+      T.set(begin, 1100);
+    } else if (phase === 'go') {
+      clearTimeout(goTimer);
+      const rt = Math.round(performance.now() - startAt);
+      times.push(rt); round++; phase = 'pause';
+      orb.className = 'orb early'; orb.textContent = rt + ' ms'; sub.textContent = '';
+      T.set(begin, 900);
+    }
+  }
+  orb.addEventListener('pointerdown', e => { e.preventDefault(); tap(); });
+  orb.addEventListener('click', e => { if (e.detail === 0) tap(); });
+  function finish() {
+    const avg = Math.round(mean(times));
+    done({ score: clamp(Math.round((560 - avg) / 3.6), 0, 100),
+      detail: 'Average reaction time: ' + avg + ' ms' + (slow ? ' (' + slow + ' missed or too slow)' : '') + '. Most people land between 250 and 350 ms.' });
+  }
+  begin();
+  return () => T.clear();
+}
+
+function memoryGame(stage, done) {
+  const T = makeTimers(); let L = 4, best = 3, seq = [], pos = 0, input = false, cd = null;
+  stage.innerHTML = '<div class="status" id="st"></div>' + TIMER_HTML + '<div class="mgrid" id="g"></div><div class="note">Watch the cells light up, then repeat the order before time runs out.</div>';
+  const st = $('#st', stage), g = $('#g', stage), tm = $('.tmr', stage); const cells = [];
+  tm.style.visibility = 'hidden';
+  for (let i = 0; i < 9; i++) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'cell'; b.setAttribute('aria-label', 'Cell ' + (i + 1));
+    b.addEventListener('pointerdown', e => { e.preventDefault(); tap(i); });
+    b.addEventListener('click', e => { if (e.detail === 0) tap(i); });
+    g.appendChild(b); cells.push(b);
+  }
+  function flash(i, cls, ms) { cells[i].classList.add(cls); T.set(() => cells[i].classList.remove(cls), ms); }
+  function show() {
+    input = false; pos = 0; seq = []; tm.style.visibility = 'hidden';
+    for (let i = 0; i < L; i++) { let c; do { c = rand(0, 8); } while (i > 0 && c === seq[i - 1]); seq.push(c); }
+    st.textContent = 'Level ' + (L - 3) + ': watch…';
+    seq.forEach((c, i) => T.set(() => flash(c, 'lit', 330), 700 + i * 550));
+    T.set(() => {
+      input = true; st.textContent = 'Your turn';
+      cd = countdown(tm, 3000 + L * 900, () => { input = false; st.textContent = 'Time’s up'; T.set(finish, 900); });
+    }, 700 + L * 550);
+  }
+  function tap(i) {
+    if (!input) return;
+    flash(i, 'tap', 200);
+    if (i === seq[pos]) {
+      pos++; st.textContent = 'Your turn: ' + pos + '/' + L;
+      if (pos === L) {
+        input = false; best = L; cd.stop();
+        if (L >= 10) { st.textContent = 'Perfect run!'; T.set(finish, 900); return; }
+        L++; st.textContent = 'Nice! Next level…'; T.set(show, 1000);
+      }
+    } else { input = false; cd.stop(); st.textContent = 'Not quite'; T.set(finish, 900); }
+  }
+  function finish() {
+    done({ score: clamp(Math.round((best - 3) / 7 * 100), 0, 100),
+      detail: best < 4 ? 'The first pattern slipped away this time. Try saying the positions out loud as you watch.' : 'Longest pattern recalled: ' + best + ' cells.' });
+  }
+  show();
+  return () => { T.clear(); if (cd) cd.stop(); };
+}
+
+const INKS = [{ n: 'RED', c: '#F25555' }, { n: 'GREEN', c: '#34B56B' }, { n: 'BLUE', c: '#4C8DFF' }, { n: 'ORANGE', c: '#FF8A1F' }];
+function stroopGame(stage, done) {
+  const T = makeTimers(); const N = 15, LIMIT = 2500; let i = 0, ok = 0, late = 0, shownAt = 0, cur = null, locked = true, cd = null; const times = [];
+  stage.innerHTML = '<div class="status" id="st"></div>' + TIMER_HTML + '<div class="bigword" id="w"></div><div class="opts" id="o"></div><div class="note">Tap the colour the word is printed in, not what it says. Each word is gone in 2.5 seconds.</div>';
+  const st = $('#st', stage), w = $('#w', stage), o = $('#o', stage), tm = $('.tmr', stage);
+  tm.style.visibility = 'hidden';
+  INKS.forEach(ink => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.textContent = ink.n[0] + ink.n.slice(1).toLowerCase();
+    b.addEventListener('pointerdown', e => { e.preventDefault(); answer(ink); });
+    b.addEventListener('click', e => { if (e.detail === 0) answer(ink); });
+    o.appendChild(b);
+  });
+  function next() {
+    if (i >= N) return finish();
+    const word = pick(INKS); let ink = pick(INKS);
+    if (Math.random() < 0.9) { while (ink === word) ink = pick(INKS); }
+    cur = ink; w.textContent = word.n; w.style.color = ink.c; st.textContent = (i + 1) + ' of ' + N;
+    shownAt = performance.now(); locked = false;
+    cd = countdown(tm, LIMIT, () => { if (locked) return; locked = true; late++; times.push(LIMIT); i++; w.textContent = 'Too slow'; w.style.color = 'var(--muted)'; T.set(next, 450); });
+  }
+  function answer(ink) {
+    if (locked) return; locked = true; cd.stop();
+    times.push(performance.now() - shownAt); if (ink === cur) ok++; i++;
+    w.textContent = ''; T.set(next, 250);
+  }
+  function finish() {
+    const avg = mean(times), acc = ok / N, speed = clamp((2200 - avg) / 1500, 0, 1);
+    done({ score: clamp(Math.round(100 * acc * (0.4 + 0.6 * speed)), 0, 100),
+      detail: ok + ' of ' + N + ' correct, ' + (avg / 1000).toFixed(1) + ' s per word' + (late ? ', ' + late + ' timed out' : '') + '.' });
+  }
+  next();
+  return () => { T.clear(); if (cd) cd.stop(); };
+}
+
+/* Shared timed multiple-choice engine for Next in Line and Number Sprint. */
+function quizGame(stage, done, qs, cfg) {
+  const T = makeTimers(); let i = 0, ok = 0, late = 0, at = 0, locked = true, cd = null; const times = [];
+  stage.innerHTML = '<div class="status" id="st"></div>' + TIMER_HTML + '<div class="bigq" id="q"></div><div class="opts" id="o"></div><div class="note" id="fb"></div>';
+  const st = $('#st', stage), qEl = $('#q', stage), o = $('#o', stage), fb = $('#fb', stage), tm = $('.tmr', stage);
+  function show() {
+    if (i >= qs.length) return done(cfg.score(ok, times, late));
+    const q = qs[i]; st.textContent = 'Question ' + (i + 1) + ' of ' + qs.length; qEl.textContent = q.text; fb.textContent = cfg.hint;
+    o.innerHTML = '';
+    q.options.forEach(v => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.textContent = String(v);
+      b.addEventListener('pointerdown', e => { e.preventDefault(); choose(q, v); });
+      b.addEventListener('click', e => { if (e.detail === 0) choose(q, v); });
+      o.appendChild(b);
+    });
+    at = performance.now(); locked = false;
+    cd = countdown(tm, cfg.limit * 1000, () => {
+      if (locked) return; locked = true; late++; times.push(cfg.limit * 1000);
+      fb.textContent = 'Time’s up. The answer was ' + q.ans; i++; T.set(show, 1300);
+    });
+  }
+  function choose(q, v) {
+    if (locked) return; locked = true; cd.stop(); times.push(performance.now() - at);
+    const right = v === q.ans; if (right) ok++;
+    fb.textContent = right ? 'Correct!' : 'The answer was ' + q.ans; i++; T.set(show, right ? 400 : 1100);
+  }
+  show();
+  return () => { T.clear(); if (cd) cd.stop(); };
+}
+function optionsFor(ans) {
+  const big = ans > 60;
+  const pool = shuffle([ans + 1, ans - 1, ans + 2, ans - 2, ans + 10, ans - 10, ans + 3, ans - 3, big ? ans + 20 : ans + 5, big ? ans - 20 : ans + 4]).filter(v => v > 0 && v !== ans);
+  return shuffle([ans, pool[0], pool[1], pool[2]]);
+}
+const PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61];
+function seqQuestion(type) {
+  let t = [];
+  if (type === 'mul1') { const m = pick([2, 3]), c = pick([-1, 1, 2]); t.push(rand(2, 4)); for (let k = 0; k < 5; k++) t.push(t[k] * m + c); }
+  else if (type === 'cube') { const n = rand(2, 5); for (let k = 0; k < 6; k++) t.push(Math.pow(n + k, 3)); }
+  else if (type === 'inter') { const a = rand(2, 9), b = rand(25, 45), d1 = rand(2, 6), d2 = rand(2, 5); for (let k = 0; k < 6; k++) t.push(k % 2 === 0 ? a + d1 * (k / 2) : b - d2 * ((k - 1) / 2)); }
+  else if (type === 'prime') { const s = rand(0, 10); t = PRIMES.slice(s, s + 6); }
+  else if (type === 'tri2') { const s = pick([1, 2]); t.push(rand(1, 9)); for (let k = 1; k < 6; k++) t.push(t[k - 1] + 2 * k + s); }
+  else if (type === 'sqpm') { const n = rand(3, 9), c = pick([-3, -2, 2, 5]); for (let k = 0; k < 6; k++) t.push((n + k) * (n + k) + c); }
+  else if (type === 'trib') { t = [rand(1, 3), rand(1, 4), rand(2, 5)]; while (t.length < 6) t.push(t[t.length - 1] + t[t.length - 2] + t[t.length - 3]); }
+  else if (type === 'alt') { const a = rand(5, 9), b = rand(1, 4); t.push(rand(5, 15)); for (let k = 0; k < 5; k++) t.push(t[k] + (k % 2 === 0 ? a : -b)); }
+  else { t = [rand(2, 6), rand(3, 8)]; while (t.length < 6) t.push(t[t.length - 1] + t[t.length - 2]); }
+  const ans = t[5];
+  return { text: t.slice(0, 5).join(', ') + ', ?', ans, options: optionsFor(ans) };
+}
+function patternGame(stage, done) {
+  const types = shuffle(['mul1', 'cube', 'inter', 'prime', 'tri2', 'sqpm', 'trib', 'alt', 'fib']).slice(0, 7);
+  return quizGame(stage, done, types.map(seqQuestion), {
+    limit: 25,
+    hint: 'Look for the rule: it may use two steps, two interleaved lists, or special numbers.',
+    score: (ok, times, late) => ({ score: Math.round(ok / 7 * 100), detail: ok + ' of 7 patterns solved' + (late ? ', ' + late + ' timed out' : '') + '.' })
+  });
+}
+function mathQuestion() {
+  const k = pick(['add3', 'sub3', 'mul2', 'div', 'mix', 'sq']); let a, b, c, text, ans;
+  if (k === 'add3') { a = rand(120, 689); b = rand(120, 389); text = a + ' + ' + b; ans = a + b; }
+  else if (k === 'sub3') { a = rand(400, 999); b = rand(120, a - 150); text = a + ' − ' + b; ans = a - b; }
+  else if (k === 'mul2') { a = rand(11, 29); b = rand(6, 15); text = a + ' × ' + b; ans = a * b; }
+  else if (k === 'div') { b = rand(4, 15); ans = rand(6, 25); a = b * ans; text = a + ' ÷ ' + b; }
+  else if (k === 'mix') { a = rand(10, 60); b = rand(3, 12); c = rand(3, 12); text = a + ' + ' + b + ' × ' + c; ans = a + b * c; }
+  else { a = rand(13, 25); text = a + '²'; ans = a * a; }
+  return { text, ans, options: optionsFor(ans) };
+}
+function mathGame(stage, done) {
+  const qs = Array.from({ length: 10 }, mathQuestion);
+  return quizGame(stage, done, qs, {
+    limit: 10,
+    hint: 'Multiplication happens before addition. Go quickly, but accuracy counts too.',
+    score: (ok, times, late) => {
+      const avg = mean(times), speed = clamp((9000 - avg) / 6000, 0, 1);
+      return { score: clamp(Math.round(100 * (ok / 10) * (0.4 + 0.6 * speed)), 0, 100),
+        detail: ok + ' of 10 correct, ' + (avg / 1000).toFixed(1) + ' s per question' + (late ? ', ' + late + ' timed out' : '') + '.' };
+    }
+  });
+}
+const IMPL = { reaction: reactionGame, memory: memoryGame, stroop: stroopGame, pattern: patternGame, math: mathGame };
+
+/* ---------- Results and coaching ---------- */
+function levelFor(avg) {
+  return avg < 35 ? 'Warming Up' : avg < 55 ? 'Getting Sharp' : avg < 75 ? 'Sharp Mind' : avg < 90 ? 'Brain Athlete' : 'Brain Legend';
+}
+function computeSummary() {
+  const rows = state.track.games.map(id => ({ skill: GAMES[id].skill, game: GAMES[id].name, score: state.results[id].score, detail: state.results[id].detail }));
+  const avg = Math.round(mean(rows.map(r => r.score)));
+  const points = rows.reduce((s, r) => s + r.score * 10, 0);
+  const byScore = rows.slice().sort((a, b) => b.score - a.score);
+  const strongest = byScore[0], weakest = byScore[byScore.length - 1];
+  let weak = byScore.filter(r => r.score < 60).reverse().slice(0, 2);
+  if (!weak.length) weak = [weakest];
+  let strong = byScore.filter(r => r.score >= 70).slice(0, 2);
+  if (!strong.length) strong = [strongest];
+  return { rows, avg, points, maxPoints: rows.length * 1000, strongest, weakest, weak, strong, level: levelFor(avg), style: STYLE_NAMES[strongest.skill] };
+}
+function summaryText(s) {
+  const lines = ['CerebralPals result: ' + s.level + ' (' + s.style + ')', 'Brain Points: ' + s.points + ' / ' + s.maxPoints];
+  s.rows.forEach(r => lines.push(r.skill + ': ' + r.score + '/100'));
+  lines.push('Work on: ' + s.weak.map(r => r.skill).join(', '));
+  return lines.join('\n');
+}
+
+function showResults() {
+  pill.textContent = 'Your results';
+  const s = computeSummary();
+  const weakSkills = s.weak.map(r => r.skill);
+  const gap = s.strongest.skill === s.weakest.skill ? '' :
+    ' ' + s.weakest.skill + ' (' + s.weakest.score + ') has the most room to grow.';
+  setView(`
+    <section class="card stack">
+      <div class="scorehero">
+        <div class="pts"><small>BRAIN POINTS</small><span class="big-score">${s.points}</span><small>of ${s.maxPoints}</small></div>
+        <div class="stack" style="gap:6px;min-width:0;flex:1 1 220px">
+          <span class="tag good">${s.level}</span>
+          <h1>${s.style}</h1>
+          <p class="muted">Your strongest skill was ${s.strongest.skill} (${s.strongest.score}).${gap}</p>
+        </div>
+      </div>
+    </section>
+    <section class="card stack" style="margin-top:14px">
+      <h2>Skill breakdown</h2>
+      <div class="skills">
+        ${s.rows.map(r => `
+          <div class="skill${weakSkills.includes(r.skill) ? ' weak' : ''}">
+            <span class="name">${r.skill} <span class="muted" style="font-weight:400">· ${r.game}</span></span>
+            <span class="num">${r.score}</span>
+            <span class="bar"><i style="width:${r.score}%"></i></span>
+            <span class="detail">${r.detail}</span>
+          </div>`).join('')}
+      </div>
+    </section>
+    <section class="tracks" style="margin-top:14px">
+      <div class="card stack">
+        <h3><span class="tag good">Strengths</span></h3>
+        <ul class="list">${s.strong.map(r => `<li><b>${r.skill}</b> at ${r.score}. Keep using it: this is your fastest route to confidence.</li>`).join('')}</ul>
+      </div>
+      <div class="card stack">
+        <h3><span class="tag warn">Work on these</span></h3>
+        <ul class="list">${s.weak.map(r => `<li><b>${r.skill}</b> at ${r.score}. ${SKILL_TIPS[r.skill]}</li>`).join('')}</ul>
+      </div>
+    </section>
+    <section class="card coach stack" style="margin-top:14px">
+      <h2>AI coaching</h2>
+      <p class="muted">Get a short, personal summary and a 5 minute daily plan based on your scores.</p>
+      <div class="row"><button class="btn blue" type="button" id="coachBtn">Get my coaching</button></div>
+      <div id="coachOut" class="stack" aria-live="polite"></div>
+    </section>
+    <div class="row" style="margin-top:18px">
+      <button class="btn primary" type="button" id="againBtn">Play this track again</button>
+      <button class="btn ghost" type="button" id="otherBtn">Try another track</button>
+      <button class="btn ghost" type="button" id="copyBtn">Copy my summary</button>
+    </div>
+    <p class="note" id="copyNote" style="margin-top:8px" aria-live="polite"></p>`);
+  $('#againBtn').addEventListener('click', () => startTrack(state.track.id));
+  $('#otherBtn').addEventListener('click', showHome);
+  $('#copyBtn').addEventListener('click', () => {
+    const note = $('#copyNote'), text = summaryText(s);
+    const fail = () => { note.textContent = 'Copying is blocked here. Select and copy this instead: ' + text.replace(/\n/g, ' | '); };
+    try { navigator.clipboard.writeText(text).then(() => { note.textContent = 'Summary copied.'; }, fail); } catch (e) { fail(); }
+  });
+  $('#coachBtn').addEventListener('click', () => askCoach(s));
+}
+
+function coachError(code) {
+  if (code === 'not_granted') return 'AI coaching is turned off for this page. Your built-in tips above still apply.';
+  if (code === 'rate_limited') return 'Too many requests right now. Try again in a minute.';
+  if (code === 'session_expired') return 'Please sign in to Claude again, then retry.';
+  if (code === 'sampling_disabled') return 'AI coaching is not available on this account. Your built-in tips above still apply.';
+  return 'Could not reach the AI coach this time. Try again.';
+}
+function addPara(parent, tag, text, cls) {
+  const e = document.createElement(tag); e.textContent = text; if (cls) e.className = cls; parent.appendChild(e); return e;
+}
+/* Calls the Netlify function (which holds the API key). Inside Claude's preview it uses the built-in sampler instead. */
+const COACH_ENDPOINT = '/api/coach';
+async function getCoaching(prompt, s) {
+  if (sample) return await sample.json(prompt, { modelTier: 'default', cache: false });
+  let res;
+  try {
+    res = await fetch(COACH_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        points: s.points, maxPoints: s.maxPoints,
+        rows: s.rows.map(r => ({ skill: r.skill, game: r.game, score: r.score, detail: r.detail }))
+      })
+    });
+  } catch (e) { throw { code: 'network' }; }
+  if (res.status === 429) throw { code: 'rate_limited' };
+  if (!res.ok) throw { code: 'server_error' };
+  return await res.json();
+}
+async function askCoach(s) {
+  const btn = $('#coachBtn'), out = $('#coachOut');
+  out.textContent = '';
+  btn.disabled = true; addPara(out, 'p', 'Reading your scores…', 'note');
+  const scores = s.rows.map(r => '- ' + r.skill + ' (' + r.game + '): ' + r.score + '/100. ' + r.detail).join('\n');
+  const prompt = 'You are a warm, encouraging brain-training coach talking to a college student who just played short brain games. '
+    + 'Scores (0 to 100 per skill):\n' + scores + '\nTotal Brain Points: ' + s.points + ' of ' + s.maxPoints + '.\n\n'
+    + 'Reply with only a JSON object: {"headline": string (max 8 words), "summary": string (2 to 3 sentences, plain language), '
+    + '"weak_points": [{"skill": string, "why": string (1 sentence), "practice": string (1 to 2 sentences, concrete)}] (at most 2, the lowest scores), '
+    + '"plan": [string, string, string] (three habits of 5 minutes or less)}. '
+    + 'Be specific to these numbers, never diagnose anything, and remind them this is a fun snapshot, not a clinical test, only if it fits naturally.';
+  try {
+    const r = await getCoaching(prompt, s);
+    out.textContent = '';
+    if (!r || typeof r !== 'object') throw { code: 'invalid_json' };
+    addPara(out, 'h3', String(r.headline || 'Your coaching plan'));
+    if (r.summary) addPara(out, 'p', String(r.summary));
+    if (Array.isArray(r.weak_points) && r.weak_points.length) {
+      addPara(out, 'h3', 'Where to work');
+      const ul = addPara(out, 'ul', '', 'list');
+      r.weak_points.slice(0, 2).forEach(w => {
+        const li = document.createElement('li');
+        const b = document.createElement('b'); b.textContent = String(w.skill || '') + '. '; li.appendChild(b);
+        li.appendChild(document.createTextNode(String(w.why || '') + ' ' + String(w.practice || '')));
+        ul.appendChild(li);
+      });
+    }
+    if (Array.isArray(r.plan) && r.plan.length) {
+      addPara(out, 'h3', 'Your daily 5 minutes');
+      const ul = addPara(out, 'ul', '', 'list');
+      r.plan.slice(0, 3).forEach(p => addPara(ul, 'li', String(p)));
+    }
+    btn.textContent = 'Regenerate coaching'; btn.disabled = false;
+  } catch (e) {
+    out.textContent = '';
+    addPara(out, 'p', coachError(e && e.code), 'note');
+    btn.disabled = false;
+  }
+}
+
+showHome();
+</script>
+
+</body></html>
