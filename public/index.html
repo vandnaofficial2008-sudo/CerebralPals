@@ -7,23 +7,12 @@
 <style>
 /* Layout: one centred column. Home = track cards. Play = one focused stage. Results = score hero, skill bars, coach. */
 :root{
-  --bg:#EEF4FF; --surface:#FFFFFF; --surface2:#E3ECFF; --ink:#0E2147; --muted:#52668C; --line:#CBD8F2;
-  --blue:#1F5EFF; --blue-ink:#FFFFFF; --orange:#FF7A1A; --orange-ink:#1B1100;
-  --good:#16794A; --warn:#B33A00; --focus:#1F5EFF;
+  --bg:#2B3CE8; --surface:#FFFFFF; --surface2:#E8EDFF; --ink:#13194D; --muted:#566090; --line:#D5DCFA;
+  --blue:#3F5BFF; --blue-ink:#FFFFFF; --orange:#FFB224; --orange-ink:#3A2300; --panel:#161B8C;
+  --good:#14803F; --warn:#B33A00; --focus:#FFD84D;
   --display:'Fredoka','Trebuchet MS',system-ui,sans-serif;
   --body:'DM Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#081329; --surface:#10224A; --surface2:#183166; --ink:#EAF1FF; --muted:#9DB1D8; --line:#27427F;
-    --blue:#6B9BFF; --blue-ink:#071433; --orange:#FF9442; --orange-ink:#1B1100;
-    --good:#4BD08A; --warn:#FFB07A; --focus:#9DBBFF; color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#081329; --surface:#10224A; --surface2:#183166; --ink:#EAF1FF; --muted:#9DB1D8; --line:#27427F;
-  --blue:#6B9BFF; --blue-ink:#071433; --orange:#FF9442; --orange-ink:#1B1100;
-  --good:#4BD08A; --warn:#FFB07A; --focus:#9DBBFF; color-scheme:dark;
+  color-scheme:light;
 }
 *{box-sizing:border-box}
 body{
@@ -107,6 +96,48 @@ p{margin:0}
 .tmr i{display:block;height:100%;width:100%;background:var(--orange);border-radius:99px}
 .tmr span{font-variant-numeric:tabular-nums;font-weight:700;min-width:3ch;text-align:right}
 footer{margin-top:28px;font-size:.85rem;color:var(--muted)}
+
+/* ---- Playful look + distraction mode ---- */
+body{background:radial-gradient(circle at 12% 6%,rgba(255,255,255,.14) 0 90px,transparent 91px),radial-gradient(circle at 94% 34%,rgba(255,178,36,.22) 0 70px,transparent 71px),linear-gradient(#2B3CE8,#1B27B5) fixed}
+.brand,.hero h1,.hero p,.steps,.steps .muted,footer,.top .pill,.gamebar .pill{color:#fff}
+.hero p,.steps .muted,footer{color:rgba(255,255,255,.86)}
+.top .pill,.gamebar .pill{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.3)}
+.gamebar .btn.ghost{color:#fff;border-color:rgba(255,255,255,.55)}
+.prog{background:rgba(255,255,255,.22)}.prog i{background:var(--orange)}
+.card{border:0;border-radius:26px;box-shadow:0 6px 0 rgba(8,12,90,.35)}
+.btn{border-radius:99px;padding:12px 24px;font-size:1.02rem;--sh:rgba(0,0,0,.2);box-shadow:0 5px 0 var(--sh)}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 var(--sh)}
+.btn.primary{--sh:#C27F00}.btn.blue{--sh:#2036B8}.btn.ghost{box-shadow:none}
+.pals{display:flex;gap:6px;align-items:flex-end;margin-bottom:4px}
+.pals svg{width:68px;height:68px;animation:bob 3s ease-in-out infinite}
+.pals svg:nth-child(2){animation-delay:.5s}.pals svg:nth-child(3){animation-delay:1s}
+@keyframes bob{50%{transform:translateY(-6px) rotate(-3deg)}}
+.dist{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px;cursor:pointer}
+.dist b{display:block;font-family:var(--display);font-size:1.15rem}
+.dist span{font-size:.92rem}
+#distToggle{appearance:none;-webkit-appearance:none;flex:none;width:60px;height:34px;border-radius:99px;background:#C9D1F5;position:relative;cursor:pointer;transition:background .2s}
+#distToggle::after{content:"";position:absolute;top:4px;left:4px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 0 rgba(0,0,0,.2);transition:transform .2s}
+#distToggle:checked{background:#16A34A}#distToggle:checked::after{transform:translateX(26px)}
+.stage{background:var(--panel);color:#fff}
+.stage .status,.stage .bigq,.stage .tmr span{color:#fff}
+.stage .note{color:rgba(255,255,255,.8)}
+.stage .tmr .trk{background:rgba(255,255,255,.2)}
+.stage .orb{background:#fff;color:var(--ink);box-shadow:0 8px 0 rgba(0,0,0,.28)}
+.stage .orb.go{background:var(--orange);color:var(--orange-ink)}
+.stage .orb.early{background:#9AA5E8;color:var(--ink)}
+.stage .cell{background:rgba(255,255,255,.16);border-radius:18px}
+.stage .cell.lit{background:var(--orange)}.stage .cell.tap{background:#fff}
+.opt{border:0;border-radius:18px;box-shadow:0 5px 0 rgba(0,0,0,.25)}
+.opt:active{transform:translateY(3px);box-shadow:0 2px 0 rgba(0,0,0,.25)}
+.dpop{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,14,90,.78)}
+.dcard{background:#fff;color:var(--ink);border-radius:28px;padding:22px;max-width:360px;width:100%;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 8px 0 rgba(0,0,0,.3);animation:pop .25s ease-out}
+.dcard svg{width:84px;height:84px}
+@keyframes pop{from{transform:scale(.8);opacity:0}}
+.dbtns{display:flex;gap:10px;width:100%;justify-content:center;margin-top:6px}
+.dbtns.rnd{justify-content:var(--j,center)}
+.dbtns .btn.emoji{font-size:2rem;padding:8px 16px;background:var(--surface2);color:var(--ink);--sh:#B8C3F0}
+.dbtns .btn.shake{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
 <div class="app">
@@ -162,7 +193,63 @@ const SKILL_TIPS = {
 };
 const STYLE_NAMES = { Speed: 'Lightning Reactor', Memory: 'Memory Keeper', Focus: 'Laser Focuser', Logic: 'Pattern Finder', Calculation: 'Number Ninja' };
 
-const state = { track: null, idx: 0, results: {}, cleanup: null };
+const state = { track: null, idx: 0, results: {}, cleanup: null, distractOn: false };
+
+/* ---------- Pals (mascots) ---------- */
+const PALS = {
+  star: '<svg viewBox="0 0 80 80" aria-hidden="true"><path d="M40 6l9.5 20.5 22.5 2.7-16.6 15.4 4.4 22.2L40 55.6 20.2 66.8l4.4-22.2L8 29.2l22.5-2.7z" fill="#FFC93C" stroke="#E59A00" stroke-width="3" stroke-linejoin="round"/><rect x="22" y="31" width="15" height="11" rx="4" fill="#13194D"/><rect x="43" y="31" width="15" height="11" rx="4" fill="#13194D"/><path d="M37 36h6" stroke="#13194D" stroke-width="3"/><path d="M32 50q8 7 16 0" fill="none" stroke="#13194D" stroke-width="3" stroke-linecap="round"/></svg>',
+  heart: '<svg viewBox="0 0 80 80" aria-hidden="true"><path d="M40 70C14 52 8 36 14 24c6-11 20-10 26 0 6-10 20-11 26 0 6 12 0 28-26 46z" fill="#FF5D8F" stroke="#D63A6E" stroke-width="3" stroke-linejoin="round"/><circle cx="31" cy="34" r="7" fill="#fff"/><circle cx="49" cy="34" r="7" fill="#fff"/><circle cx="32" cy="35" r="3.5" fill="#13194D"/><circle cx="50" cy="35" r="3.5" fill="#13194D"/><ellipse cx="40" cy="50" rx="4" ry="5" fill="#13194D"/></svg>',
+  blob: '<svg viewBox="0 0 80 80" aria-hidden="true"><path d="M14 58C8 34 24 12 42 14c18 2 30 18 24 40-2 8-10 12-26 12S16 66 14 58z" fill="#5BB6FF" stroke="#2E86D8" stroke-width="3"/><path d="M30 14l-4-9 9 5M50 14l5-9-10 5" fill="#5BB6FF" stroke="#2E86D8" stroke-width="3" stroke-linejoin="round"/><circle cx="32" cy="36" r="8" fill="#fff"/><circle cx="52" cy="36" r="8" fill="#fff"/><circle cx="34" cy="37" r="4" fill="#13194D"/><circle cx="54" cy="37" r="4" fill="#13194D"/><path d="M34 54q8 6 16 0" fill="none" stroke="#13194D" stroke-width="3" stroke-linecap="round"/></svg>'
+};
+
+/* ---------- Distraction mode: surprise pop-ups that test how fast you refocus ---------- */
+const DIST = { on: false, count: 0, times: [] };
+try { DIST.on = localStorage.getItem('cp_distract') === '1'; } catch (e) {}
+const DIST_POPS = [
+  { pal: 'star', title: 'Psst, over here!', text: 'Honey can last thousands of years without spoiling. Anyway, your game is still running!' },
+  { pal: 'heart', title: 'Quick poll!', text: 'Is a hot dog a sandwich? Do not answer that. Get back to your game.' },
+  { pal: 'blob', title: 'Bloop says hi', text: 'An octopus has three hearts. Impressive, but the clock keeps ticking!' },
+  { pal: 'star', title: 'Guess what?', text: 'Bananas are berries, but strawberries are not. Now eyes back on the game.' },
+  { pal: 'heart', title: 'Plot twist', text: 'A day on Venus is longer than its year. Your timer is not that patient.' },
+  { pal: 'blob', title: 'Mini challenge', text: 'Can you ignore me and keep your focus? Prove it by getting back fast.' }
+];
+const DIST_PICKS = [['🍎', 'apple'], ['🍌', 'banana'], ['🍇', 'grapes'], ['🍓', 'strawberry']];
+function startDistractions() {
+  let timer = null, box = null, stopped = false, shown = 0;
+  const next = () => { if (!stopped && shown < 3) timer = setTimeout(show, rand(6000, 11000)); };
+  function show() {
+    shown++; DIST.count++;
+    const p = pick(DIST_POPS), t0 = performance.now(), target = pick(DIST_PICKS), usePick = Math.random() < 0.5;
+    box = document.createElement('div'); box.className = 'dpop'; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', p.title);
+    box.innerHTML = '<div class="dcard">' + PALS[p.pal] + '<h3>' + p.title + '</h3><p>' + p.text + '</p>' +
+      (usePick ? '<p><b>Tap the ' + target[0] + ' (' + target[1] + ') to get back to the game.</b></p>' : '') + '<div class="dbtns"></div></div>';
+    const wrap = box.querySelector('.dbtns');
+    const close = () => { DIST.times.push(performance.now() - t0); if (box) box.remove(); box = null; next(); };
+    if (usePick) {
+      shuffle(DIST_PICKS.slice(0, 4).filter(x => x !== target).slice(0, 2).concat([target])).forEach(x => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'btn emoji'; b.textContent = x[0]; b.setAttribute('aria-label', x[1]);
+        b.addEventListener('click', () => { if (x === target) close(); else { b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake'); } });
+        wrap.appendChild(b);
+      });
+    } else {
+      wrap.classList.add('rnd'); wrap.style.setProperty('--j', pick(['flex-start', 'center', 'flex-end']));
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'btn primary'; b.textContent = 'Back to focus';
+      b.addEventListener('click', close); wrap.appendChild(b);
+    }
+    document.body.appendChild(box);
+    const first = box.querySelector('button'); if (first) first.focus();
+  }
+  next();
+  return () => { stopped = true; clearTimeout(timer); if (box) { box.remove(); box = null; } };
+}
+function distCard() {
+  if (!state.distractOn) return '';
+  if (!DIST.times.length) return '<section class="card stack" style="margin-top:14px"><h2>Distraction report</h2><p class="muted">Distraction mode was on, but no pop-ups showed up this time. Try a longer track next.</p></section>';
+  const avg = mean(DIST.times) / 1000;
+  const verdict = avg < 2 ? 'Laser refocus: you bounced back almost instantly.' : avg < 3.5 ? 'Quick recovery: a small wobble, then back on target.' : 'The pals got you this time. Try a focus routine: phone away, one tab, one task.';
+  return '<section class="card stack" style="margin-top:14px"><h2>Distraction report</h2><p>You faced <b>' + DIST.times.length + '</b> surprise pop-up' + (DIST.times.length === 1 ? '' : 's') + ' and got back to the game in <b>' + avg.toFixed(1) + ' s</b> on average.</p><p class="muted">' + verdict + ' Scores can be a little lower with distractions on, and that is normal.</p></section>';
+}
+
 const view = $('#view');
 const pill = $('#topPill');
 function setView(html) {
@@ -181,9 +268,14 @@ function showHome() {
   pill.textContent = 'No sign-up needed';
   setView(`
     <section class="hero">
+      <div class="pals">${PALS.star}${PALS.heart}${PALS.blob}</div>
       <h1>Find out how your brain plays.</h1>
       <p>Pick a track, play a few quick games and get your Brain Points, your strongest skills and the exact areas to work on. Every game is timed, so stay sharp. Takes about six minutes.</p>
     </section>
+    <label class="card dist" for="distToggle">
+      <div><b>Distraction mode</b><span class="muted">Surprise pop-ups from the pals while you play. They test how fast you can refocus, and the clock keeps ticking.</span></div>
+      <input type="checkbox" id="distToggle" role="switch" aria-label="Distraction mode">
+    </label>
     <section class="tracks" aria-label="Choose a track">
       ${TRACKS.map(t => `
         <article class="card track${t.main ? ' main' : ''}">
@@ -200,12 +292,16 @@ function showHome() {
       <div><b>Improve</b><span class="muted">See your weak points and get an AI practice plan.</span></div>
     </section>`);
   view.querySelectorAll('[data-track]').forEach(b => b.addEventListener('click', () => startTrack(b.dataset.track)));
+  const dt = $('#distToggle');
+  dt.checked = DIST.on;
+  dt.addEventListener('change', () => { DIST.on = dt.checked; try { localStorage.setItem('cp_distract', DIST.on ? '1' : '0'); } catch (e) {} });
 }
 
 function startTrack(id) {
   state.track = TRACKS.find(t => t.id === id);
   state.idx = 0;
   state.results = {};
+  state.distractOn = DIST.on; DIST.count = 0; DIST.times = [];
   showIntro();
 }
 function gameHead() {
@@ -233,7 +329,9 @@ function playGame() {
   const g = GAMES[state.track.games[state.idx]];
   setView(`${gameHead()}<div class="card stage" id="stage"></div>`);
   wireQuit();
-  state.cleanup = IMPL[g.id]($('#stage'), res => finishGame(g, res));
+  const stopGame = IMPL[g.id]($('#stage'), res => finishGame(g, res));
+  const stopDist = state.distractOn ? startDistractions() : null;
+  state.cleanup = () => { if (typeof stopGame === 'function') stopGame(); if (stopDist) stopDist(); };
 }
 function finishGame(g, res) {
   state.results[g.id] = res;
@@ -525,6 +623,7 @@ function showResults() {
         <ul class="list">${s.weak.map(r => `<li><b>${r.skill}</b> at ${r.score}. ${SKILL_TIPS[r.skill]}</li>`).join('')}</ul>
       </div>
     </section>
+    ${distCard()}
     <section class="card coach stack" style="margin-top:14px">
       <h2>AI coaching</h2>
       <p class="muted">Get a short, personal summary and a 5 minute daily plan based on your scores.</p>
