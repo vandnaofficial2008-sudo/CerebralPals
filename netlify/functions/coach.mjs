@@ -44,13 +44,13 @@ export default async (req, context) => {
   if (!validate(body)) return json({ error: 'bad_request' }, 400);
 
   try {
-    const models = [MODEL, process.env.GEMINI_FALLBACK_MODEL].filter(Boolean);
+    const models = [MODEL, process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.5-flash-lite'];
     const payload = JSON.stringify({
       contents: [{ parts: [{ text: buildPrompt(body) }] }],
       generationConfig: {
         responseMimeType: 'application/json',
-        maxOutputTokens: 1000,
-        thinkingConfig: { thinkingBudget: 0 }
+        maxOutputTokens: 1500,
+        thinkingConfig: { thinkingLevel: 'low' }
       }
     });
 
@@ -66,7 +66,7 @@ export default async (req, context) => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
           body: payload,
-          signal: AbortSignal.timeout(8000)
+          signal: AbortSignal.timeout(10000)
         });
         if (r.ok) {
           const data = await r.json();
@@ -79,7 +79,7 @@ export default async (req, context) => {
         if (![429, 500, 503, 504].includes(r.status)) break; // not worth retrying
       } catch (e) {
         lastStatus = 0;
-        console.error('Gemini request failed or timed out', model, e.name);
+        console.error('Gemini request failed or timed out', model, e.name, e.message);
       }
       await new Promise(res => setTimeout(res, 1000));
     }
