@@ -1,6 +1,5 @@
 // Netlify Function: proxies coaching requests to NVIDIA's API (build.nvidia.com, key starts with nvapi-).
 // Needs the environment variable NVIDIA_API_KEY (set in the Netlify dashboard).
-const MODEL = process.env.NVIDIA_MODEL || 'meta/llama-3.3-70b-instruct';
 
 // Best-effort rate limit (per warm function instance): 10 requests / 10 minutes per IP
 const hits = new Map();
@@ -44,27 +43,22 @@ export default async (req, context) => {
   if (!validate(body)) return json({ error: 'bad_request' }, 400);
 
   try {
-    const models = [MODEL, process.env.NVIDIA_FALLBACK_MODEL || 'meta/llama-3.1-8b-instruct'];
+    const key = process.env.NVIDIA_API_KEY;
     const prompt = buildPrompt(body);
-
-    // Try up to 3 times, each with a time limit, so we always answer before Netlify's 30 second cut-off.
     const started = Date.now();
+    const models = await candidateModels(key);
     let lastStatus = 0;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const model = models[attempt > 0 ? 1 : 0];
-      if (Date.now() - started > 18000) break;
+
+    // Walk through the candidate models. A retired or missing model (404/410) just moves on to the next one.
+    for (let i = 0; i < models.length && i < 5; i++) {
+      if (Date.now() - started > 19000) break;
+      const model = models[i];
       try {
         const r = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + process.env.NVIDIA_API_KEY },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: 'user', content: prompt }],
-            max_tokens: 900,
-            temperature: 0.6,
-            stream: false
-          }),
-          signal: AbortSignal.timeout(10000)
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+          body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: 900, temperature: 0.6, stream: false }),
+          signal: AbortSignal.timeout(9000)
         });
         if (r.ok) {
           const data = await r.json();
@@ -73,13 +67,12 @@ export default async (req, context) => {
           return json(JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1)));
         }
         lastStatus = r.status;
-        console.error('NVIDIA API', r.status, model, (await r.text()).slice(0, 300));
-        if (![429, 500, 502, 503, 504].includes(r.status)) break; // not worth retrying (bad key, bad model name...)
+        console.error('NVIDIA API', r.status, model, (await r.text()).slice(0, 200));
+        if (r.status === 401 || r.status === 403) break; // key problem: other models will fail too
       } catch (e) {
         lastStatus = 0;
         console.error('NVIDIA request failed, timed out or gave unreadable JSON', model, e.name, e.message);
       }
-      await new Promise(res => setTimeout(res, 1000));
     }
     return json({ error: lastStatus === 429 ? 'rate_limited' : 'upstream' }, lastStatus === 429 ? 429 : 502);
   } catch (e) {
@@ -87,5 +80,25 @@ export default async (req, context) => {
     return json({ error: 'upstream' }, 502);
   }
 };
+
+// Your NVIDIA_MODEL first (if set), then whatever instruct models NVIDIA currently lists, smaller/faster ones first.
+let modelCache = null;
+async function candidateModels(key) {
+  const first = [process.env.NVIDIA_MODEL].filter(Boolean);
+  if (!modelCache) {
+    modelCache = [];
+    try {
+      const r = await fetch('https://integrate.api.nvidia.com/v1/models', { headers: { Authorization: 'Bearer ' + key }, signal: AbortSignal.timeout(4000) });
+      if (r.ok) {
+        const ids = ((await r.json()).data || []).map(m => m.id);
+        const ok = ids.filter(id => /instruct/i.test(id) && !/embed|rerank|guard|vision|-vl|video|audio|reward|parse|safety|clip|code|math|translate|nemoretriever/i.test(id));
+        const size = id => { const m = id.match(/(\d+(?:\.\d+)?)b/i); return m ? parseFloat(m[1]) : 50; };
+        modelCache = ok.sort((x, y) => Math.abs(size(x) - 30) - Math.abs(size(y) - 30)).slice(0, 6);
+      }
+    } catch (e) { console.error('Could not list NVIDIA models', e.name); }
+  }
+  const fallback = ['meta/llama-3.1-8b-instruct', 'mistralai/mistral-7b-instruct-v0.3'];
+  return [...new Set([...first, ...modelCache, ...fallback])];
+}
 
 export const config = { path: '/api/coach' };
