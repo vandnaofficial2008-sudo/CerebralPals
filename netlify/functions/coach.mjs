@@ -1,6 +1,6 @@
-// Netlify Function: proxies coaching requests to the Google Gemini API (Google AI Studio key).
-// Needs the environment variable GEMINI_API_KEY (set in the Netlify dashboard).
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+// Netlify Function: proxies coaching requests to NVIDIA's API (build.nvidia.com, key starts with nvapi-).
+// Needs the environment variable NVIDIA_API_KEY (set in the Netlify dashboard).
+const MODEL = process.env.NVIDIA_MODEL || 'meta/llama-3.3-70b-instruct';
 
 // Best-effort rate limit (per warm function instance): 10 requests / 10 minutes per IP
 const hits = new Map();
@@ -36,7 +36,7 @@ const json = (obj, status = 200) =>
 
 export default async (req, context) => {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
-  if (!process.env.GEMINI_API_KEY) return json({ error: 'missing_key' }, 500);
+  if (!process.env.NVIDIA_API_KEY) return json({ error: 'missing_key' }, 500);
   if (limited(context.ip || 'unknown')) return json({ error: 'rate_limited' }, 429);
 
   let body;
@@ -44,42 +44,40 @@ export default async (req, context) => {
   if (!validate(body)) return json({ error: 'bad_request' }, 400);
 
   try {
-    const models = [MODEL, process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.5-flash-lite'];
-    const payload = JSON.stringify({
-      contents: [{ parts: [{ text: buildPrompt(body) }] }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        maxOutputTokens: 1500,
-        thinkingConfig: { thinkingLevel: 'low' }
-      }
-    });
+    const models = [MODEL, process.env.NVIDIA_FALLBACK_MODEL || 'meta/llama-3.1-8b-instruct'];
+    const prompt = buildPrompt(body);
 
-    // Gemini is sometimes busy (503) or slow. Try up to 3 times, each with a time limit,
-    // so the function always answers before Netlify's 30 second cut-off.
+    // Try up to 3 times, each with a time limit, so we always answer before Netlify's 30 second cut-off.
     const started = Date.now();
     let lastStatus = 0;
     for (let attempt = 0; attempt < 3; attempt++) {
-      const model = models[Math.min(attempt > 0 ? 1 : 0, models.length - 1)];
+      const model = models[attempt > 0 ? 1 : 0];
       if (Date.now() - started > 18000) break;
       try {
-        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        const r = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-          body: payload,
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + process.env.NVIDIA_API_KEY },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 900,
+            temperature: 0.6,
+            stream: false
+          }),
           signal: AbortSignal.timeout(10000)
         });
         if (r.ok) {
           const data = await r.json();
-          const text = (data.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('');
+          const text = data.choices?.[0]?.message?.content || '';
           const clean = text.replace(/```json|```/g, '').trim();
           return json(JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1)));
         }
         lastStatus = r.status;
-        console.error('Gemini API', r.status, model, (await r.text()).slice(0, 300));
-        if (![429, 500, 503, 504].includes(r.status)) break; // not worth retrying
+        console.error('NVIDIA API', r.status, model, (await r.text()).slice(0, 300));
+        if (![429, 500, 502, 503, 504].includes(r.status)) break; // not worth retrying (bad key, bad model name...)
       } catch (e) {
         lastStatus = 0;
-        console.error('Gemini request failed or timed out', model, e.name, e.message);
+        console.error('NVIDIA request failed, timed out or gave unreadable JSON', model, e.name, e.message);
       }
       await new Promise(res => setTimeout(res, 1000));
     }
