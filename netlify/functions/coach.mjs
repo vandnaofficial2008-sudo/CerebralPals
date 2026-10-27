@@ -50,7 +50,7 @@ export default async (req, context) => {
     let lastStatus = 0;
 
     // Walk through the candidate models. A retired or missing model (404/410) just moves on to the next one.
-    for (let i = 0; i < models.length && i < 5; i++) {
+    for (let i = 0; i < models.length && i < 10; i++) {
       if (Date.now() - started > 19000) break;
       const model = models[i];
       try {
@@ -81,7 +81,7 @@ export default async (req, context) => {
   }
 };
 
-// Your NVIDIA_MODEL first (if set), then whatever instruct models NVIDIA currently lists, smaller/faster ones first.
+// Your NVIDIA_MODEL first (if set), then a few well-known models, then whatever instruct models NVIDIA lists.
 let modelCache = null;
 async function candidateModels(key) {
   const first = [process.env.NVIDIA_MODEL].filter(Boolean);
@@ -97,8 +97,8 @@ async function candidateModels(key) {
       }
     } catch (e) { console.error('Could not list NVIDIA models', e.name); }
   }
-  const fallback = ['meta/llama-3.1-8b-instruct', 'mistralai/mistral-7b-instruct-v0.3'];
-  return [...new Set([...first, ...modelCache, ...fallback])];
+  const known = ['meta/llama-3.1-8b-instruct', 'deepseek-ai/deepseek-v3.1', 'moonshotai/kimi-k2.6', 'mistralai/mistral-7b-instruct-v0.3'];
+  return [...new Set([...first, ...known, ...modelCache])];
 }
 
 export const config = { path: '/api/coach' };
