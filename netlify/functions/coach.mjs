@@ -54,16 +54,22 @@ export default async (req, context) => {
       if (Date.now() - started > 19000) break;
       const model = models[i];
       try {
-        const r = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+        // Reasoning models can spend all their tokens "thinking" and return an empty answer,
+        // so ask for no thinking, allow plenty of tokens, and give your chosen model more time.
+        const call = extra => fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
-          body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: 900, temperature: 0.6, stream: false }),
-          signal: AbortSignal.timeout(9000)
+          body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: 3000, temperature: 0.6, stream: false, ...extra }),
+          signal: AbortSignal.timeout(Math.max(3000, Math.min(i === 0 ? 24000 : 9000, 27000 - (Date.now() - started))))
         });
+        let r = await call({ chat_template_kwargs: { enable_thinking: false } });
+        if (r.status === 400) r = await call({}); // this model does not know that setting: retry plainly
         if (r.ok) {
           const data = await r.json();
-          const text = data.choices?.[0]?.message?.content || '';
+          const msg = data.choices?.[0]?.message || {};
+          const text = msg.content || '';
           const clean = text.replace(/```json|```/g, '').trim();
+          if (clean.indexOf('{') < 0) throw new Error('Empty answer (finish_reason: ' + data.choices?.[0]?.finish_reason + ')');
           return json(JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1)));
         }
         lastStatus = r.status;
