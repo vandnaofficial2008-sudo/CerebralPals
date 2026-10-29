@@ -1,5 +1,28 @@
-// Netlify Function: proxies coaching requests to NVIDIA's API (build.nvidia.com, key starts with nvapi-).
-// Needs the environment variable NVIDIA_API_KEY (set in the Netlify dashboard).
+// Netlify Function: sends game scores to an AI model and returns coaching JSON.
+// Uses NVIDIA Nemotron models on Nebius Token Factory when NEBIUS_API_KEY is set, otherwise NVIDIA's own API (NVIDIA_API_KEY).
+// Optional: NEBIUS_MODEL / NVIDIA_MODEL to choose a model.
+const PROVIDERS = {
+  nebius: {
+    name: 'Nebius',
+    key: () => process.env.NEBIUS_API_KEY,
+    base: 'https://api.tokenfactory.nebius.com/v1',
+    model: () => process.env.NEBIUS_MODEL,
+    // Nemotron models hosted on Nebius Token Factory (ids can differ in capitalisation, so the live model list is also checked)
+    known: ['nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B', 'nvidia/nemotron-3-super-120b-a12b', 'nvidia/Nemotron-Nano-V2-12b'],
+    match: /nemotron/i,
+    extra: { chat_template_kwargs: { enable_thinking: false } }
+  },
+  nvidia: {
+    name: 'NVIDIA',
+    key: () => process.env.NVIDIA_API_KEY,
+    base: 'https://integrate.api.nvidia.com/v1',
+    model: () => process.env.NVIDIA_MODEL,
+    known: ['meta/llama-3.1-8b-instruct', 'deepseek-ai/deepseek-v3.1', 'moonshotai/kimi-k2.6', 'mistralai/mistral-7b-instruct-v0.3'],
+    match: /instruct/i,
+    extra: { chat_template_kwargs: { enable_thinking: false } }
+  }
+};
+const pickProvider = () => (PROVIDERS.nebius.key() ? PROVIDERS.nebius : PROVIDERS.nvidia.key() ? PROVIDERS.nvidia : null);
 
 // Best-effort rate limit (per warm function instance): 10 requests / 10 minutes per IP
 const hits = new Map();
@@ -35,7 +58,8 @@ const json = (obj, status = 200) =>
 
 export default async (req, context) => {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
-  if (!process.env.NVIDIA_API_KEY) return json({ error: 'missing_key' }, 500);
+  const prov = pickProvider();
+  if (!prov) return json({ error: 'missing_key' }, 500);
   if (limited(context.ip || 'unknown')) return json({ error: 'rate_limited' }, 429);
 
   let body;
@@ -43,41 +67,40 @@ export default async (req, context) => {
   if (!validate(body)) return json({ error: 'bad_request' }, 400);
 
   try {
-    const key = process.env.NVIDIA_API_KEY;
+    const key = prov.key();
     const prompt = buildPrompt(body);
     const started = Date.now();
-    const models = await candidateModels(key);
+    const models = await candidateModels(prov, key);
     let lastStatus = 0;
 
-    // Walk through the candidate models. A retired or missing model (404/410) just moves on to the next one.
-    for (let i = 0; i < models.length && i < 10; i++) {
+    // Walk through candidate models. A retired or missing model (404/410) just moves on to the next one.
+    for (let i = 0; i < models.length && i < 8; i++) {
       if (Date.now() - started > 19000) break;
       const model = models[i];
       try {
-        // Reasoning models can spend all their tokens "thinking" and return an empty answer,
-        // so ask for no thinking, allow plenty of tokens, and give your chosen model more time.
-        const call = extra => fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+        // Reasoning models can spend all their tokens thinking, so ask for little thinking and allow plenty of tokens.
+        const call = extra => fetch(prov.base + '/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
           body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: 3000, temperature: 0.6, stream: false, ...extra }),
           signal: AbortSignal.timeout(Math.max(3000, Math.min(i === 0 ? 24000 : 9000, 27000 - (Date.now() - started))))
         });
-        let r = await call({ chat_template_kwargs: { enable_thinking: false } });
-        if (r.status === 400) r = await call({}); // this model does not know that setting: retry plainly
+        let r = await call(prov.extra);
+        if (r.status === 400) r = await call({}); // model does not know that setting: retry plainly
         if (r.ok) {
           const data = await r.json();
-          const msg = data.choices?.[0]?.message || {};
-          const text = msg.content || '';
+          const text = data.choices?.[0]?.message?.content || '';
           const clean = text.replace(/```json|```/g, '').trim();
           if (clean.indexOf('{') < 0) throw new Error('Empty answer (finish_reason: ' + data.choices?.[0]?.finish_reason + ')');
+          console.log(prov.name + ' answered with ' + model);
           return json(JSON.parse(clean.slice(clean.indexOf('{'), clean.lastIndexOf('}') + 1)));
         }
         lastStatus = r.status;
-        console.error('NVIDIA API', r.status, model, (await r.text()).slice(0, 200));
+        console.error(prov.name + ' API', r.status, model, (await r.text()).slice(0, 200));
         if (r.status === 401 || r.status === 403) break; // key problem: other models will fail too
       } catch (e) {
         lastStatus = 0;
-        console.error('NVIDIA request failed, timed out or gave unreadable JSON', model, e.name, e.message);
+        console.error(prov.name + ' request failed, timed out or gave unreadable JSON', model, e.name, e.message);
       }
     }
     return json({ error: lastStatus === 429 ? 'rate_limited' : 'upstream' }, lastStatus === 429 ? 429 : 502);
@@ -87,24 +110,23 @@ export default async (req, context) => {
   }
 };
 
-// Your NVIDIA_MODEL first (if set), then a few well-known models, then whatever instruct models NVIDIA lists.
-let modelCache = null;
-async function candidateModels(key) {
-  const first = [process.env.NVIDIA_MODEL].filter(Boolean);
-  if (!modelCache) {
-    modelCache = [];
+// Your chosen model first (if set), then well-known ones, then whatever instruct models the provider lists.
+const modelCache = {};
+async function candidateModels(prov, key) {
+  const first = [prov.model()].filter(Boolean);
+  if (!modelCache[prov.name]) {
+    modelCache[prov.name] = [];
     try {
-      const r = await fetch('https://integrate.api.nvidia.com/v1/models', { headers: { Authorization: 'Bearer ' + key }, signal: AbortSignal.timeout(4000) });
+      const r = await fetch(prov.base + '/models', { headers: { Authorization: 'Bearer ' + key }, signal: AbortSignal.timeout(4000) });
       if (r.ok) {
         const ids = ((await r.json()).data || []).map(m => m.id);
-        const ok = ids.filter(id => /instruct/i.test(id) && !/embed|rerank|guard|vision|-vl|video|audio|reward|parse|safety|clip|code|math|translate|nemoretriever/i.test(id));
+        const ok = ids.filter(id => prov.match.test(id) && !/embed|rerank|guard|vision|-vl|omni|video|audio|reward|parse|safety|clip|code|math|translate|nemoretriever/i.test(id));
         const size = id => { const m = id.match(/(\d+(?:\.\d+)?)b/i); return m ? parseFloat(m[1]) : 50; };
-        modelCache = ok.sort((x, y) => Math.abs(size(x) - 30) - Math.abs(size(y) - 30)).slice(0, 6);
+        modelCache[prov.name] = ok.sort((x, y) => Math.abs(size(x) - 30) - Math.abs(size(y) - 30)).slice(0, 6);
       }
-    } catch (e) { console.error('Could not list NVIDIA models', e.name); }
+    } catch (e) { console.error('Could not list models', e.name); }
   }
-  const known = ['meta/llama-3.1-8b-instruct', 'deepseek-ai/deepseek-v3.1', 'moonshotai/kimi-k2.6', 'mistralai/mistral-7b-instruct-v0.3'];
-  return [...new Set([...first, ...known, ...modelCache])];
+  return [...new Set([...first, ...prov.known, ...modelCache[prov.name]])];
 }
 
 export const config = { path: '/api/coach' };
